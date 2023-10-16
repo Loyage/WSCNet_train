@@ -1,7 +1,9 @@
 import torch
 import torch.nn as nn
 import torchvision.models as models
+import torch.nn.functional as F
 
+import torch as t
 
 class LeNet5(nn.Module):
     """Lenet5"""
@@ -119,7 +121,7 @@ class WSCNet(nn.Module): #drop_net_0.95
         self.bn32 = nn.BatchNorm2d(128)
 
         self.classifier = nn.Sequential(
-                nn.Linear(128*6*6,256),
+                nn.Linear(128*4*4,256),
                 nn.ReLU(inplace = True),
                 nn.Dropout(),
                 nn.Linear(256,256),
@@ -149,28 +151,29 @@ class WSCNet(nn.Module): #drop_net_0.95
 class WSCLoss(nn.Module):
     """WSCLoss"""
 
-    def __init__(self):
+    def __init__(self, device):
         super().__init__()
         self.class_loss_func = nn.CrossEntropyLoss()
+        self.device = device
 
     def forward(self, output_class, output_count, labels):
         # classification loss
-        class_label = t.zeros(labels.shape)
+        class_label = torch.zeros(labels.shape).to(self.device)
         class_label[labels > 0] = 1.0
         class_loss = self.class_loss_func(output_class, class_label.long())
 
         # counting loss
-        max_pool = t.nn.MaxPool2d(kernel_size=(output_count.shape[2], output_count.shape[3]))
+        max_pool = torch.nn.MaxPool2d(kernel_size=(output_count.shape[2], output_count.shape[3]))
         max_den = max_pool(output_count)
         max_loss = F.relu(max_den-1).mean()
 
         output_count = output_count.view(output_count.size()[0], -1)
         count_map = 2 - F.leaky_relu(2-output_count.sum(1), negative_slope=0.01)
 
-        count_mask = t.zeros(labels.shape)
-        count_mask_0 = t.zeros(labels.shape)
-        count_mask_1 = t.zeros(labels.shape)
-        count_mask_2 = t.zeros(labels.shape)
+        count_mask = torch.zeros(labels.shape).to(self.device)
+        count_mask_0 = torch.zeros(labels.shape).to(self.device)
+        count_mask_1 = torch.zeros(labels.shape).to(self.device)
+        count_mask_2 = torch.zeros(labels.shape).to(self.device)
         count_mask[labels > 0] = 1.0
         count_mask_0[labels == 1] = 1.0
         count_mask_1[labels == 2] = 1.0
@@ -185,3 +188,4 @@ class WSCLoss(nn.Module):
         # sum loss
         sum_loss = class_loss + count_loss
         return sum_loss
+

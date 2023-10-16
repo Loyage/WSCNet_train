@@ -1,5 +1,5 @@
 import cv2
-import torch as t
+import torch
 import torch.utils.data as Data
 import torch.nn.functional as F
 import torchvision.transforms as transforms
@@ -35,7 +35,31 @@ class DropDataset(Data.Dataset):
         img = cv2.imread(self.data[index][0]) / 255
         img = self.transforms(img)
         label = self.data[index][1]
-        return img.to(t.float32), F.one_hot(t.tensor(label), num_classes=4).to(t.float32)
+        return img.to(torch.float32), torch.tensor(label).to(torch.float32)
+
+    def __len__(self):
+        return len(self.data)
+
+
+class WSCDataset(Data.Dataset):
+    """WSCDataset
+    Args:
+        data: list of tuple (path, label)
+    """
+
+    def __init__(self, data, mode="test"):
+        self.data = data
+        self.transforms = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Resize((48, 48)),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+            ])
+
+    def __getitem__(self, index):
+        img = cv2.imread(self.data[index][0]) / 255
+        img = self.transforms(img)
+        label = self.data[index][1]
+        return img.to(torch.float32), torch.tensor(label).to(torch.float32)
 
     def __len__(self):
         return len(self.data)
